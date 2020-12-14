@@ -7,13 +7,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.jit.annotations import Tuple, List
 
-from torchvision_modified.models.detection import FasterRCNN
-from torchvision_modified.models.detection.backbone_utils import BackboneWithFPN
-from torchvision_modified.ops import misc as misc_nn_ops
+from ..torchvision_modified.models.detection import FasterRCNN
+from ..torchvision_modified.models.detection.backbone_utils import BackboneWithFPN
+from ..torchvision_modified.ops import misc as misc_nn_ops
+from ..torchvision_modified.models import resnet
 from torchvision.ops.feature_pyramid_network import LastLevelMaxPool
-from torchvision_modified.models import resnet
 
-from .utils import *
+from ..utils import *
 
 def resnet_fpn_backbone(
     backbone_name,
