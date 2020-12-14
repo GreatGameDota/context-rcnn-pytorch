@@ -47,13 +47,13 @@ def test_context_rcnn_predict():
                       use_self_attention=False, self_attention_in_sequence=False, 
                       num_attention_heads=1, num_attention_layers=1)
     model.cuda()
-    
+
     model.train()
     dets, loss_dict = model(img_batch1, img_batch2, targets1, targets2)
     print(loss_dict)
     
     model.eval()
-    dets, loss_dict = model(img_batch1, img_batch2, targets1, targets2)
+    dets, loss_dict = model(img_batch1, img_batch2, None, None)
 
     assert dets[0]['boxes'][0].shape == targets1[0]['boxes'][0].shape
     assert dets[0]['labels'][0].shape == targets1[0]['labels'][0].shape

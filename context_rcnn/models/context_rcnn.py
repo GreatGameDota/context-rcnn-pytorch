@@ -286,7 +286,10 @@ class Context_FRCNN(nn.Module):
       context_features2 = []
       valid_context_size2 = []
 
-      imgs, targets_ = self.FasterRCNN.transform(imgs, context_targets[i])
+      if context_targets:
+        imgs, targets_ = self.FasterRCNN.transform(imgs, context_targets[i])
+      else:
+        imgs, targets_ = self.FasterRCNN.transform(imgs, None)
       features = self.FasterRCNN.backbone(imgs.tensors)
       props, prop_loss1 = self.FasterRCNN.rpn(imgs, features, targets_)
 
