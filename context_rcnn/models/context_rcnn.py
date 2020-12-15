@@ -65,7 +65,7 @@ class Context_FRCNN(nn.Module):
                backbone_out_features=256, attention_features=256,
                attention_post_rpn=True, attention_post_box_classifier=False,
                use_long_term_attention=True, use_self_attention=False, self_attention_in_sequence=False, 
-               num_attention_heads=1, num_attention_layers=1): # TODO: Dynamically create/call attention blocks based on specified head/layers
+               num_attention_heads=1, num_attention_layers=1):
     super(Context_FRCNN, self).__init__()
     backbone = resnet_fpn_backbone(backbone, pretrained_backbone, backbone_out_features, trainable_layers=trainable_backbone_layers)
     self.out_channels = backbone.out_channels
