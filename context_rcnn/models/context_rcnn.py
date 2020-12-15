@@ -15,6 +15,13 @@ from torchvision.ops.feature_pyramid_network import LastLevelMaxPool
 
 from ..utils import *
 
+def project_features(features, projection_dimension, eps=.001, momentum=.03):
+    return nn.Sequential(
+        nn.Linear(features, projection_dimension),
+        nn.BatchNorm1d(projection_dimension, eps=eps, momentum=momentum),
+        nn.ReLU()
+    )
+
 def resnet_fpn_backbone(
     backbone_name,
     pretrained,
@@ -65,6 +72,7 @@ class Context_FRCNN(nn.Module):
     self.FasterRCNN = FasterRCNN(backbone, num_classes, rpn_post_nms_top_n_test=512) # change so same feats in train and eval
 
     self._maxpool_layer = nn.MaxPool2d((1,1), stride=1)
+    self.head_channels = 1024
 
     # Context RCNN parameters
     self.attention_post_rpn = attention_post_rpn
@@ -86,96 +94,29 @@ class Context_FRCNN(nn.Module):
     eps = 0.001
     momentum = 0.03
     if self.use_long_term_attention and self.attention_post_rpn:
-      self.queries_fc1 = nn.Sequential(
-          nn.Linear(self.out_channels, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.keys_fc1 = nn.Sequential(
-          nn.Linear(self.context_feature_dimension, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.values_fc1 = nn.Sequential(
-          nn.Linear(self.context_feature_dimension, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.output_fc1 = nn.Sequential(
-          nn.Linear(self.attention_bottleneck_dimension, self.out_channels),
-          nn.BatchNorm1d(self.out_channels, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
+      for j in range(self.num_attention_layers):
+        for i in range(self.num_attention_heads):
+          self.make_attention_block(self.out_channels, self.context_feature_dimension, self.attention_bottleneck_dimension, block=1+(i*4)+(j*8))
 
     if self.attention_post_rpn and self.use_self_attention:
-      self.queries_fc2 = nn.Sequential(
-          nn.Linear(self.out_channels, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.keys_fc2 = nn.Sequential(
-          nn.Linear(self.out_channels, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.values_fc2 = nn.Sequential(
-          nn.Linear(self.out_channels, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.output_fc2 = nn.Sequential(
-          nn.Linear(self.attention_bottleneck_dimension, self.out_channels),
-          nn.BatchNorm1d(self.out_channels, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
+      self.make_attention_block(self.out_channels, self.out_channels, self.attention_bottleneck_dimension, block=2)
 
     if self.use_long_term_attention and self.attention_post_box_classifier:
-      self.head_channels = 1024
-      self.queries_fc3 = nn.Sequential(
-          nn.Linear(self.head_channels, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.keys_fc3 = nn.Sequential(
-          nn.Linear(self.context_feature_dimension, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.values_fc3 = nn.Sequential(
-          nn.Linear(self.context_feature_dimension, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.output_fc3 = nn.Sequential(
-          nn.Linear(self.attention_bottleneck_dimension, self.head_channels),
-          nn.BatchNorm1d(self.head_channels, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
+      for j in range(self.num_attention_layers):
+        for i in range(self.num_attention_heads):
+          self.make_attention_block(self.head_channels, self.context_feature_dimension, self.attention_bottleneck_dimension, block=3+(i*4)+(j*8))
       
     if self.attention_post_box_classifier and self.use_self_attention:
-      self.queries_fc4 = nn.Sequential(
-          nn.Linear(self.head_channels, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.keys_fc4 = nn.Sequential(
-          nn.Linear(self.head_channels, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.values_fc4 = nn.Sequential(
-          nn.Linear(self.head_channels, self.attention_bottleneck_dimension),
-          nn.BatchNorm1d(self.attention_bottleneck_dimension, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      self.output_fc4 = nn.Sequential(
-          nn.Linear(self.attention_bottleneck_dimension, self.head_channels),
-          nn.BatchNorm1d(self.head_channels, eps=eps, momentum=momentum),
-          nn.ReLU()
-      )
-      
+      self.make_attention_block(self.head_channels, self.head_channels, self.attention_bottleneck_dimension, block=4)
+  
+  def make_attention_block(self, features, context_features, bottleneck_features, block=1):
+    setattr(self, f'queries_fc{block}', project_features(features, bottleneck_features))
+    setattr(self, f'keys_fc{block}',    project_features(context_features, bottleneck_features))
+    setattr(self, f'values_fc{block}',  project_features(context_features, bottleneck_features))
+    setattr(self, f'output_fc{block}',  project_features(bottleneck_features, features))
+
   def attention_block(self, input_features, context_features, output_dimension, 
-                      keys_values_valid_mask, queries_valid_mask=None, self_attention=False, block=1):
+                      keys_values_valid_mask, queries_valid_mask, block=1):
     
     batch_size, _, num_features = input_features.shape
     features = input_features.reshape((-1, num_features))
@@ -229,13 +170,12 @@ class Context_FRCNN(nn.Module):
           channels, 
           keys_values_valid_mask=box_valid_mask,
           queries_valid_mask=box_valid_mask,
-          self_attention=True,
           block=block+1)
-
+    
     if self.use_long_term_attention:
       if self.use_self_attention and self.self_attention_in_sequence:
         input_features = torch.add(self_attention_box_features, box_features)
-        input_features = torch.divide(input_features, 2)
+        input_features = torch.div(input_features, 2)
       else:
         input_features = box_features
       original_input_features = input_features
@@ -248,7 +188,7 @@ class Context_FRCNN(nn.Module):
               channels,
               keys_values_valid_mask=context_valid_mask,
               queries_valid_mask=box_valid_mask,
-              block=block)
+              block=block+(idx*4)+(jdx*8))
           layer_features = torch.add(layer_features, attention_features)
         layer_features = torch.div(layer_features, self.num_attention_heads)
         input_features = torch.add(input_features, layer_features)
