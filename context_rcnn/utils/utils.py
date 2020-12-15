@@ -36,7 +36,7 @@ def compute_valid_mask(num_valid_elements, num_elements):
     # batch_element_idxs = torch.tile(element_idxs.unsqueeze(0), (batch_size, 1))
     batch_element_idxs = element_idxs.repeat(batch_size).reshape(batch_size,-1).to(num_valid_elements.device)
     num_valid_elements = num_valid_elements.unsqueeze(-1)
-    valid_mask = torch.less(batch_element_idxs, num_valid_elements)
+    valid_mask = torch.lt(batch_element_idxs, num_valid_elements)
     return valid_mask
 
 _NEGATIVE_PADDING_VALUE = -100000

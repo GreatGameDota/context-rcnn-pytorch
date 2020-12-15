@@ -6,7 +6,7 @@ from torch.nn import init
 from torch.nn.parameter import Parameter
 from torch.nn.modules.utils import _pair
 from torch.jit.annotations import Optional, Tuple
-from torchvision.extension import _assert_has_ops
+from torchvision_modified.extension import _assert_has_ops
 
 
 def deform_conv2d(
