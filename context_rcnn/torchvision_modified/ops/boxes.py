@@ -3,7 +3,7 @@ from torch.jit.annotations import Tuple
 from torch import Tensor
 from ._box_convert import _box_cxcywh_to_xyxy, _box_xyxy_to_cxcywh, _box_xywh_to_xyxy, _box_xyxy_to_xywh
 # import torchvision
-from torchvision_modified.extension import _assert_has_ops
+from ..extension import _assert_has_ops
 
 
 def nms(boxes: Tensor, scores: Tensor, iou_threshold: float) -> Tensor:
