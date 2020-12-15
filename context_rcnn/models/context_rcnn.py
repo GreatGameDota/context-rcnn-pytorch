@@ -91,6 +91,7 @@ class Context_FRCNN(nn.Module):
     # self.attention_temperature = self.softmax_temperature * math.sqrt(self.attention_bottleneck_dimension)
     self.attention_temperature = 0.2
     
+    # Initialize Attention Blocks
     eps = 0.001
     momentum = 0.03
     if self.use_long_term_attention and self.attention_post_rpn:
