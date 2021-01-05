@@ -49,11 +49,11 @@ def test_context_rcnn_predict():
     model.cuda()
 
     model.train()
-    dets, loss_dict = model(img_batch1, img_batch2, targets1, targets2)
+    dets, loss_dict = model(img_batch1, img_batch2, targets1, context_targets=targets2)
     print(loss_dict)
     
     model.eval()
-    dets, loss_dict = model(img_batch1, img_batch2, None, None)
+    dets, loss_dict = model(img_batch1, img_batch2)
 
     assert dets[0]['boxes'][0].shape == targets1[0]['boxes'][0].shape
     assert dets[0]['labels'][0].shape == targets1[0]['labels'][0].shape
