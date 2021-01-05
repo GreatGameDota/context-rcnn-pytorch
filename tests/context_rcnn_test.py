@@ -1,7 +1,7 @@
 import torch
 import sys
 sys.path.append('../')
-from context_rcnn.models.context_rcnn import Context_FRCNN
+from context_rcnn.models.context_rcnn import Context_RCNN
 
 def get_dummy_inputs():
     images = torch.rand((2,3,720,1280))
@@ -41,7 +41,7 @@ def test_context_rcnn_predict():
       targets3.append(targets2_)
     targets2 = targets3
 
-    model = Context_FRCNN('resnet50', num_classes=3, use_long_term_attention=True,
+    model = Context_RCNN('resnet50', num_classes=3, use_long_term_attention=True,
                       backbone_out_features=256, attention_features=2048,
                       attention_post_rpn=True, attention_post_box_classifier=False, 
                       use_self_attention=False, self_attention_in_sequence=False, 
