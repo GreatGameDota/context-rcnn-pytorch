@@ -59,9 +59,10 @@ def resnet_fpn_backbone(
       out_channels = backbone_out_features
     return BackboneWithFPN(backbone, return_layers, in_channels_list, out_channels, extra_blocks=extra_blocks)
 
-class Context_FRCNN(nn.Module):
+class Context_RCNN(nn.Module):
 
   def __init__(self, backbone=None, num_classes=91, pretrained_backbone=True, trainable_backbone_layers=3,
+               return_context_feats=False,
                backbone_out_features=256, attention_features=256,
                attention_post_rpn=True, attention_post_box_classifier=False,
                use_long_term_attention=True, use_self_attention=False, self_attention_in_sequence=False, 
@@ -73,6 +74,7 @@ class Context_FRCNN(nn.Module):
 
     self._maxpool_layer = nn.MaxPool2d((1,1), stride=1)
     self.head_channels = 1024
+    self.return_context_feats = return_context_feats
 
     # Context RCNN parameters
     self.attention_post_rpn = attention_post_rpn
@@ -214,15 +216,9 @@ class Context_FRCNN(nn.Module):
 
     return box_features
 
-  def forward(self, images, context_images, targets=None, context_targets=None):
-    original_image_sizes = torch.jit.annotate(List[Tuple[int, int]], [])
-    for img in images:
-      val = img.shape[-2:]
-      assert len(val) == 2
-      original_image_sizes.append((val[0], val[1]))
-    
+  def forward(self, images=None, context_images=None, targets=None, context_features=None, valid_context_size=None, context_targets=None):
     # Get context features
-    if self.use_long_term_attention:
+    if self.use_long_term_attention and context_features is None:
       context_features = []
       valid_context_size = []
       for i,imgs in enumerate(context_images):
@@ -245,7 +241,7 @@ class Context_FRCNN(nn.Module):
           for k,props in enumerate(proposals[j]):
             bbox_feats = box_feat.mean((2,3))[k] # 1 x feats
             prop_embed = embed_position_and_size(props) # 1 x 4
-            context_feats.append(torch.cat([bbox_feats, torch.tensor(prop_embed).to(images.device)]))
+            context_feats.append(torch.cat([bbox_feats, torch.tensor(prop_embed).to(context_images.device)]))
           context_feats = torch.stack(context_feats) # num props x feats + prop
           context_features2.append(context_feats)
 
@@ -256,8 +252,17 @@ class Context_FRCNN(nn.Module):
       context_features = torch.stack(context_features)
       bs, frames, props, features = context_features.shape
       context_features = context_features.reshape((bs, frames*props, features))
-      valid_context_size = torch.stack(valid_context_size).to(images.device)
+      valid_context_size = torch.stack(valid_context_size).to(context_images.device)
     
+    if self.return_context_feats:
+      return context_features, valid_context_size
+    
+    original_image_sizes = torch.jit.annotate(List[Tuple[int, int]], [])
+    for img in images:
+      val = img.shape[-2:]
+      assert len(val) == 2
+      original_image_sizes.append((val[0], val[1]))
+
     # Keyframe run with context
     images, targets = self.FasterRCNN.transform(images, targets)
     features = self.FasterRCNN.backbone(images.tensors)
